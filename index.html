@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sign Here</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <style>
+    body { max-width:600px; margin:2rem auto; font-family:Arial,sans-serif; text-align:center; }
+    img.logo { width:160px; margin-bottom:1rem; }
+    form { text-align:left; margin-bottom:1rem; }
+    label { display:flex; justify-content:space-between; margin:8px 0; }
+    input { flex:1; margin-left:8px; padding:6px; }
+    canvas { width:100%; height:300px; border:1px solid #ccc; margin-bottom:1rem; }
+    button { padding:8px 16px; margin:0 8px; }
+    #status { margin-top:8px; font-weight:bold; }
+  </style>
+</head>
+<body>
+  <img src="logo.png" alt="Logo" class="logo" />
+  <h1>Sign Here</h1>
+
+  <form id="sign-form">
+    <label>Full Name:              <input id="full-name"            type="text"   placeholder="Enter full name" /></label>
+    <label>Date of Birth:          <input id="date-of-birth"        type="text"   placeholder="YYYY-MM-DD" autocomplete="off" /></label>
+    <label>Mobile Number:          <input id="mobile"               type="text"   placeholder="Enter mobile number" /></label>
+    <label>Email Address:          <input id="email"                type="email"  placeholder="Enter email address" /></label>
+    <label>Account opening amount: <input id="opening-amount"       type="number" placeholder="Enter amount" /></label>
+    <label>Occupation:             <input id="occupation"           type="text"   placeholder="Enter occupation" /></label>
+    <label>Residential Address:    <input id="residential-address"  type="text"   placeholder="Enter address" /></label>
+  </form>
+
+  <canvas id="sig-canvas"></canvas>
+
+  <div>
+    <button id="clear-btn"  type="button">Clear</button>
+    <button id="submit-btn" type="button">Submit</button>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL  = 'https://jdpdhxwlcsiihcsjcgrw.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkcGRoeHdsY3NpaWhjc2pjZ3J3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjM1MDksImV4cCI6MjA2ODU5OTUwOX0.C2XzqhEEP5UMstj2IhE0qLUFaDnIOyfBbh7qoCu1PNY';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      flatpickr('#date-of-birth', { dateFormat: 'Y-m-d' });
+
+      const canvas = document.getElementById('sig-canvas');
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const pad = new SignaturePad(canvas);
+
+      const form   = document.getElementById('sign-form');
+      const full   = document.getElementById('full-name');
+      const dob    = document.getElementById('date-of-birth');
+      const mob    = document.getElementById('mobile');
+      const mail   = document.getElementById('email');
+      const amt    = document.getElementById('opening-amount');
+      const occ    = document.getElementById('occupation');
+      const addr   = document.getElementById('residential-address');
+      const clear  = document.getElementById('clear-btn');
+      const submit = document.getElementById('submit-btn');
+      const status = document.getElementById('status');
+
+      clear.addEventListener('click', () => {
+        pad.clear();
+        status.textContent = '';
+      });
+
+      submit.addEventListener('click', async () => {
+        if (pad.isEmpty()) {
+          alert('Please sign first!');
+          return;
+        }
+        submit.disabled = true;
+        status.textContent = 'Submitting...';
+
+        try {
+          const signatureData = pad.toDataURL('image/png');
+          const payload = {
+            full_name:           full.value.trim(),
+            date_of_birth:       dob.value || null,
+            mobile:              mob.value.trim(),
+            email:               mail.value.trim(),
+            opening_amount:      amt.value || null,
+            occupation:          occ.value.trim(),
+            residential_address: addr.value.trim(),
+            signature_data:      signatureData
+          };
+
+            const { error } = await supabaseClient
+              .from('signatures')
+              .insert([payload]);
+
+            if (error) throw error;
+
+          status.textContent = 'Submit success!';
+          alert('Submit success!');
+          pad.clear();
+          form.reset();
+        } catch (e) {
+          console.error(e);
+          alert('Submit failed: ' + e.message);
+          status.textContent = '';
+        } finally {
+          submit.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
